@@ -3,10 +3,10 @@
 */
 #include "mbed.h"
 
-#define NUM_OF_LEDS				4												// How many LEDs
-#define BLINKY_LED_CYCLE_IN_S	2.0												// Cycle in second
-#define BLINKY_LED_INTERVAL		((2 * NUM_OF_LEDS) - 2)							// How many intervals in one cycle
-#define BLINKY_LED_ON_TIME		(BLINKY_LED_CYCLE_IN_S / BLINKY_LED_INTERVAL)	// On time for each LED
+#define NUM_OF_LEDS				4													// How many LEDs
+#define BLINKY_LED_CYCLE_IN_S	2.0													// Cycle in second
+#define BLINKY_LED_INTERVAL		((2 * NUM_OF_LEDS) - 2)								// How many intervals in one cycle
+#define BLINKY_LED_ON_TIME		(BLINKY_LED_CYCLE_IN_S / BLINKY_LED_INTERVAL)		// On time for each LED
 
 BusOut myleds(LED1, LED2, LED3, LED4);
 
