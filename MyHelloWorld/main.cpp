@@ -3,37 +3,31 @@
 */
 #include "mbed.h"
 
-DigitalOut myled1(LED1);
-DigitalOut myled2(LED2);
-DigitalOut myled3(LED3);
-DigitalOut myled4(LED4);
+#define NUM_OF_LEDS				4												// How many LEDs
+#define BLINKY_LED_CYCLE_IN_S	2.0												// Cycle in second
+#define BLINKY_LED_INTERVAL		((2 * NUM_OF_LEDS) - 2)							// How many intervals in one cycle
+#define BLINKY_LED_ON_TIME		(BLINKY_LED_CYCLE_IN_S / BLINKY_LED_INTERVAL)	// On time for each LED
+
+BusOut myleds(LED1, LED2, LED3, LED4);
 
 int main() 
 {
     while(1) 
     {
-        myled1 = 1;
-        wait(0.334);
-        myled1 = 0;
+        for (int i = 0; i < NUM_OF_LEDS; i++)
+    	{
+    		// Forward lightening
+    		myleds[i] = 1;
+    		wait(BLINKY_LED_ON_TIME);
+    		myleds[i] = 0;
+    	}
 
-        myled2 = 1;
-        wait(0.333);
-        myled2 = 0;
-
-        myled3 = 1;
-        wait(0.333);
-        myled3 = 0;
-
-        myled4 = 1;
-        wait(0.334);
-        myled4 = 0;
-
-        myled3 = 1;
-        wait(0.333);
-        myled3 = 0;
-
-        myled2 = 1;
-        wait(0.333);
-        myled2 = 0;
+        for (int i = (NUM_OF_LEDS - 2); i > 0; i--)
+    	{
+    		// Backward lightening
+    		myleds[i] = 1;
+    		wait(BLINKY_LED_ON_TIME);
+    		myleds[i] = 0;
+    	}
     }
 }
