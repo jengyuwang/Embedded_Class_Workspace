@@ -44,6 +44,7 @@ int main()
     		GreenLed = 1;
     		wait(0.2);
     		GreenLed = 0;
+    		toggleCount = 0;
     	}
     }
 }
