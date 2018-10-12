@@ -520,7 +520,7 @@ Disassembly of section .text:
 
 000004e8 <main>:
      4e8:	e92d 4880 	stmdb	sp!, {r7, r11, lr}
-     4ec:	f44f 31e1 	mov.w	r1, #115200	; 0x1c200
+     4ec:	f44f 5116 	mov.w	r1, #9600	; 0x2580
      4f0:	b08f      	sub	sp, #60	; 0x3c
      4f2:	4865      	ldr	r0, [pc, #404]	; (688 <main+0x1a0>)
      4f4:	f002 fe46 	bl	3184 <mbed::SerialBase::baud(int)>

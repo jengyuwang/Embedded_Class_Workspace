@@ -1,3 +1,4 @@
+
 /* Test which brings default HelloWorld project from mbed online compiler
    to be built under GCC.
 */
@@ -45,7 +46,7 @@ void printAccAndTempToLCD(float x, float y, float z, float temp)
 
 int main()
 {
-	pc.baud(115200);
+	pc.baud(9600);
 	pc.printf("Starting ADXL345/TMP102 Test...\r\n\r\n");
 
 	// Clear LCD screen
