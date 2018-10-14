@@ -6,7 +6,7 @@
 #include "TextLCD.h"
 
 #define SPI_CLOCK_RATE    2000000
-#define SAMPLING_TIME_MS  500
+#define SAMPLING_TIME_MS  200
 
 #define REG_DATA_FORMAT   0x31
 #define REG_POWER_CTL     0x2D
@@ -59,6 +59,10 @@ int main()
 
 	config_t[0] = REG_POWER_CTL;						// set pointer register to 'POWER_CTL'
 	config_t[1] = 0x08;									// select measure mode
+	sensor.write(addrADXL345, config_t, 2);
+
+	config_t[0] = 0x2C;//REG_BW_RATE;							// set pointer register to 'BW_RATE'
+	config_t[1] = 0x0E;									// set 1600 Hz
 	sensor.write(addrADXL345, config_t, 2);
 
 	// Initialize TMP102
