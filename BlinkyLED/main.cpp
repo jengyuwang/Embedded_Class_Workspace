@@ -7,9 +7,9 @@ DigitalOut greenLed(p8);
 
 #define SQUARE_SIGNAL_FREQUENCY_HZ		5
 
-int main() 
+int main()
 {
-    while(1) 
+    while(1)
     {
    		greenLed = 0;
    		wait(0.5/SQUARE_SIGNAL_FREQUENCY_HZ);
