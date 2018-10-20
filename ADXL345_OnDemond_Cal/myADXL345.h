@@ -11,9 +11,9 @@
 #include "mbed.h"
 #include "TextLCD.h"
 
-#define SAMPLING_TIME_MS        100
-#define CAL_SAMPLES                16
-#define WAIT_TIME_FOR_CAL_S     2.
+#define SAMPLING_TIME_MS          100
+#define CAL_SAMPLES               16
+#define WAIT_TIME_FOR_CAL_S       2.
 
 #define REG_DATA_FORMAT           0x31
 #define REG_POWER_CTL             0x2D

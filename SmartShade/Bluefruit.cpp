@@ -12,10 +12,10 @@
 Serial pc(USBTX, USBRX);
 #endif
 
-Bluefruit::Bluefruit(PinName rx, PinName tx) : Serial (tx, rx), blue(tx, rx, NULL, 9600)//, myled(LED1,LED2,LED3,LED4)
+Bluefruit::Bluefruit(PinName rx, PinName tx) : RawSerial(tx, rx), blue(tx, rx, 9600)//, myled(LED1,LED2,LED3,LED4)
 {
-	bnum = 0;
-	bhit = 0;
+    bnum = 0;
+    bhit = 0;
 }
 
 Bluefruit::~Bluefruit(void)
@@ -25,38 +25,38 @@ Bluefruit::~Bluefruit(void)
 
 bool Bluefruit::IsDataAvailable(void)
 {
-	bool ckSum = false;
+    bool ckSum = false;
 
     if (blue.getc()=='!')
     {
-    	if (blue.getc()=='B')
-    	{
-    		//button data packet
-    		bnum = blue.getc(); //button number
+        if (blue.getc()=='B')
+        {
+            //button data packet
+            bnum = blue.getc(); //button number
             bhit = blue.getc(); //1=hit, 0=release
 
             if (blue.getc()==char(~('!' + 'B' + bnum + bhit)))
             {
                 //myled = bnum - '0'; //current button number will appear on LEDs
-            	ckSum = true;
+                ckSum = true;
             }
-    	}
+        }
     }
 
 #ifdef SS_DEBUG
-		pc.printf("BLE: ckSum = %d !\r\n", ckSum);
+        pc.printf("BLE: ckSum = %d !\r\n", ckSum);
 #endif
 
     return ckSum;
 }
 
-/*
+
 bool Bluefruit::ParseData(void)
 {
     switch (state)
     {
     case start:
-    	if (blue.getc()=='!') state = got_exclm;
+        if (blue.getc()=='!') state = got_exclm;
         else state = start;
         break;
     case got_exclm:
@@ -82,34 +82,34 @@ bool Bluefruit::ParseData(void)
 
     return button_ready;
 }
-*/
+
 int Bluefruit::ReadInput(void)
 {
-	int dir;
+    int dir;
 
-	switch (bnum)
+    switch (bnum)
     {
     case '5': //button 5 up arrow
-    	dir = DIR_UP;
-       	break;
+        dir = DIR_UP;
+           break;
     case '6': //button 6 down arrow
-    	dir = DIR_DOWN;
-    	break;
+        dir = DIR_DOWN;
+        break;
     case '7': //button 7 left arrow
-    	dir = DIR_LEFT;
-    	break;
+        dir = DIR_LEFT;
+        break;
     case '8': //button 8 right arrow
-    	dir = DIR_RIGHT;
-    	break;
+        dir = DIR_RIGHT;
+        break;
     default:
-    	dir = DIR_ALL;
-    	break;
+        dir = DIR_ALL;
+        break;
     }
 
 #ifdef SS_DEBUG
-		pc.printf("BLE got direction: %d !\r\n", dir);
+        pc.printf("BLE got direction: %d !\r\n", dir);
 #endif
 
-	//button_ready = 0;
-	return dir;
+    //button_ready = 0;
+    return dir;
 }

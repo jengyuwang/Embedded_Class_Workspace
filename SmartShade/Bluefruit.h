@@ -13,35 +13,35 @@
 
 
 // State used to remember previous characters read in a button message from BLE
-//enum statetype {start = 0, got_exclm, got_B, got_num, got_hit};
+enum statetype {start = 0, got_exclm, got_B, got_num, got_hit};
 
-class Bluefruit : public Serial
+class Bluefruit : public RawSerial
 {
 public:
 
-	Bluefruit(PinName rx, PinName tx);
-	~Bluefruit();
+    Bluefruit(PinName rx, PinName tx);
+    ~Bluefruit();
 
-	bool IsDataAvailable(void);
-	bool ParseData(void);
+    bool IsDataAvailable(void);
+    bool ParseData(void);
 
-	int ReadInput(void);
-	//void ReadData(void);
+    int ReadInput(void);
+    //void ReadData(void);
 
 private:
-	Serial	blue;
-	//BusOut	myled;
+    RawSerial    blue;
+    //BusOut    myled;
 
-    char bnum;
-    char bhit;
-/*
+    //char bnum;
+    //char bhit;
+
     statetype state = start;
 
     //global variables for main and interrupt routine
     volatile bool button_ready = 0;
     volatile int  bnum = 0;
     volatile int  bhit;
-*/
+
 };
 
 

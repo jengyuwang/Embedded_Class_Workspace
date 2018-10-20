@@ -139,7 +139,7 @@ LPC1768/main.o: main.cpp ../../src/mbed_config.h \
  ../../external/mbed-os/platform/mbed_rtc_time.h \
  ../../external/mbed-os/platform/Callback.h \
  ../../external/mbed-os/platform/FunctionPointer.h TextLCD.h TMP102.h \
- APDS9960_I2C.h ServoMotor.h Bluefruit.h
+ APDS9960_I2C.h ServoMotor.h
 
 ../../src/mbed_config.h:
 
@@ -434,5 +434,3 @@ TMP102.h:
 APDS9960_I2C.h:
 
 ServoMotor.h:
-
-Bluefruit.h:
