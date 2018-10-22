@@ -2018,6 +2018,16 @@ bool APDS9960_I2C::clearProximityInt()
     return true;
 }
 
+bool APDS9960_I2C::forceInterrupt()
+{
+    uint8_t throwaway;
+    if( !wireReadDataByte(APDS9960_IFORCE, throwaway) ) {
+        return false;
+    }
+
+    return true;
+}
+
 /**
 * @brief Tells if the gesture state machine is currently running
 *

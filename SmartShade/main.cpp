@@ -2,74 +2,317 @@
 /* Test which brings default HelloWorld project from mbed online compiler
    to be built under GCC.
 */
+
 #include "mbed.h"
 #include "TextLCD.h"
 #include "TMP102.h"
 #include "APDS9960_I2C.h"
 #include "ServoMotor.h"
-//#include "Bluefruit.h"
 
 #define TEMPERATURE_SAMPLING_TIME_S         5.
 #define SAMPLING_TIME_MS                    100
 #define IDLE_TIME_FOR_TEMP_CONTROL_S        10.
+#define SET_COMFTEMP_TIMEOUT_TIME_S         3.
 
 #define SS_DEBUG
 
-
+//
 // State used to remember previous characters read in a button message from BLE
+//
 enum statetype {start = 0, got_exclm, got_B, got_num, got_hit};
 statetype state = start;
 
-
+//
 // Global variables for main and interrupt routine
+//
 volatile bool   button_ready = 0;
 volatile bool   no_cmd = 1;
+volatile bool   setNewComfTemp = 0;
+volatile bool   needToSaveFlash = 0;
+
 volatile int    bnum = 0;
 volatile int    bhit;
-volatile float  confTempF = 75.0;
+volatile int    motion = DIR_NONE;
+
+volatile float  comfTempF = 75.0;
+volatile float  sign = 1.;
+volatile float  comfTempAdj = 0.;
+volatile float  tempF = 0.;
 
 
+//
 // Object Declaration
+//
 TextLCD         LCD(p12, p20, p21, p22, p23, p24); // rs, e, d4-d7
-
 TMP102          TempSensor(p9, p10);
 APDS9960_I2C    GestSensor(p9, p10);
 ServoMotor      SvoMotor(p26);
-//Bluefruit BLE(p27, p28);
 
 Serial          BLE(p28, p27);
-Serial          pc(USBTX,USBRX);
+//Serial          pc(USBTX,USBRX);
 Ticker          tkTemp;
 Timer           timerCmd;
-InterruptIn     gsInt(p5);
+Timeout         setComfTemp;
+InterruptIn     gsInt(p6);
 
-volatile float  tempF = 0.;
-volatile bool   bleDataAvailable = false;
+//
+// Prototype for functions
+//
+void tempToLCD(float temp);
+void strToLCD(char *string);
+void motionToLCD(void);
+void driveMotor(void);
 
-void helloToLCD(void)
-{
-    LCD.cls();
-    LCD.printf("Hello, Jeng-Yu");
-}
+bool prepareGestSensor(void);
 
+//
+// Interrupt Service Routines
+//
+void task_ReadTemperature(void);
+void task_updateComfTemp(void);
+void task_Movement(void);
+void task_ReadBLE(void);
+
+/**
+ * Print temperature reading to LCD
+ *
+ */
 void tempToLCD(float temp)
 {
-    //LCD.cls();
-    LCD.locate(10,1);
-    LCD.printf("%.2fF",temp);
+    LCD.locate(0,1);
+    LCD.printf("%.1fF",temp);
+    LCD.locate(8,1);
+    LCD.printf("(%.1fF)",comfTempF);
+    /*
+    LCD.cls();
+    LCD.programCharacter(0, customChars[0]);
+    */
 }
 
-void errToLCD(char *string)
+/**
+ * Print general string to LCD
+ *
+ */
+void strToLCD(char *string)
 {
-    LCD.cls();
+    LCD.locate(0,0);
     LCD.printf("%s", string);
 }
 
+/**
+ * Print smart shade action to LCD
+ *
+ */
+void motionToLCD(void)
+{
+    char dir[16];
+
+    switch (motion)
+    {
+    case DIR_LEFT:
+        strcpy(dir, "    L-Paused    ");
+        break;
+    case DIR_RIGHT:
+        strcpy(dir, "    R-Paused    ");
+        break;
+    case DIR_UP:
+        strcpy(dir, "   Roll Up      ");
+        break;
+    case DIR_DOWN:
+        strcpy(dir, "   Roll Down    ");
+        break;
+    case DIR_NEAR:
+    case DIR_NONE:
+        strcpy(dir, "* Smart Shade * ");
+        break;
+    case DIR_FAR:
+        strcpy(dir, "    * Bye *     ");
+        break;
+    case DIR_HOT:
+        strcpy(dir, " Hot->Roll Down ");
+        break;
+    default:
+        strcpy(dir, "  Unknown Dir!  ");
+        break;
+    }
+
+    strToLCD(dir);
+    tempToLCD(tempF);
+}
+
+/**
+ * Drive motor if needed. Update smart shade action to LCD accordingly
+ *
+ */
+void driveMotor(void)
+{
+    bool resetTimer = true;
+
+    motionToLCD();
+
+    switch (motion)
+    {
+    case DIR_UP:
+        SvoMotor.RollUp();
+        break;
+    case DIR_DOWN:
+    case DIR_HOT:
+        SvoMotor.RollDown();
+        break;
+    default:
+        // Do nothing
+        resetTimer = false;
+        break;
+    }
+
+    motion = DIR_NONE;
+
+    if (resetTimer == true)
+    {
+        // reset timer only when shade is just rolled up or down
+        timerCmd.reset();
+        timerCmd.start();
+    }
+}
+
+/**
+ * Prepare gesture sensor. Print error message to LCD if needed
+ *
+ * @return bool    success (true) or fail (false)
+ */
+bool prepareGestSensor(void)
+{
+    char errMsg[16];
+
+    if (GestSensor.init() == false)
+    {
+        strcpy(errMsg, "  Err init GS ! ");
+        strToLCD(errMsg);
+        return (false);
+    }
+
+    if (GestSensor.enableGestureSensor(true) == false)
+    {
+        strcpy(errMsg, "  Err enbl GS ! ");
+        strToLCD(errMsg);
+        return (false);
+    }
+
+    return (true);
+}
+
+/**
+ * Update comfort temperature (accumulated effect)
+ *
+ */
+void ComfTempUpdate(void)
+{
+    if (bnum == '1')
+    {
+        sign = -1.;
+    }
+    else
+    {
+        comfTempAdj += ((uint8_t)bnum - 48);    // convert '2' to 2, etc.
+    }
+}
+
+/**
+ * Get BLE input and react accordingly
+ *
+ */
+void checkBLEControl(void)
+{
+    if (button_ready)
+    {
+        if (bnum == '5')
+            motion = DIR_UP;
+        else if (bnum == '6')
+            motion = DIR_DOWN;
+        else if ((bnum == '7') || (bnum == '8'))
+        {
+            motion = DIR_LEFT;          // No matter
+            SvoMotor.Pause();           // pause motor in the ISR (only set up stop bit of SvoMotor
+        }
+        else if (bhit == '1')
+        {
+            if ((bnum == '1') || (bnum == '2') || (bnum == '3') || (bnum == '4'))
+            {
+                // number pushed for comfortable temperature setting
+                ComfTempUpdate();
+                if (setNewComfTemp == false)
+                {
+                    setNewComfTemp = true;
+                    setComfTemp.attach(&task_updateComfTemp, SET_COMFTEMP_TIMEOUT_TIME_S);
+                }
+            }
+        }
+
+        button_ready = 0;               //reset flag after reading button message
+    }
+}
+
+/**
+ * Timeout ISR to update comfort temperature
+ *
+ */
+void task_updateComfTemp(void)
+{
+    comfTempF += (sign) * comfTempAdj;
+    needToSaveFlash = true;
+
+    // Reset the adjustment parameters
+    sign = 1.0;
+    comfTempAdj = 0.0;
+    setNewComfTemp = false;
+}
+
+/**
+ * Ticker ISR to read the temperature and check if exceeding the comfort level.
+ *
+ */
 void task_ReadTemperature(void)
 {
     tempF = TempSensor.GetTemperatureInF();
+
+    if (tempF > comfTempF)
+    {
+        if (timerCmd.read() > IDLE_TIME_FOR_TEMP_CONTROL_S)
+        {
+            if (SvoMotor.GetCurrentState() != down)
+            {
+                motion = DIR_HOT;
+            }
+        }
+    }
 }
 
+/**
+ * ISR to read the gesture sensor.
+ *
+ */
+void task_Movement(void)
+{
+    uint8_t proximity = 0;
+
+    if (GestSensor.isGestureAvailable())
+    {
+        motion = GestSensor.readGesture();
+
+        if ((motion == DIR_LEFT) || (motion == DIR_RIGHT))
+        {
+             SvoMotor.Pause();           // pause motor in the ISR (only set up stop bit of SvoMotor
+        }
+    }
+
+    // TBD: backlight control based on proximity (not reliable yet)
+    GestSensor.readProximity(proximity);
+}
+
+/**
+ * Serial interrupt service routine for BLE.
+ *
+ */
 void task_ReadBLE(void)
 {
     switch (state)
@@ -98,167 +341,30 @@ void task_ReadBLE(void)
         BLE.getc();
         state = start;
     }
+
+    checkBLEControl();
 }
 
-
-void motionToLCD(char *string)
-{
-    LCD.cls();
-    LCD.printf("%s", string);
-}
-
-void driveMotor(int motion)
-{
-    switch (motion)
-    {
-    case DIR_LEFT:
-    case DIR_RIGHT:
-        SvoMotor.Pause();
-        break;
-    case DIR_UP:
-        SvoMotor.RollUp();
-        break;
-    case DIR_DOWN:
-        SvoMotor.RollDown();
-        break;
-    default:
-        // Do nothing
-        break;
-    }
-}
-
-void task_Movement(void)
-{
-    int motion = GestSensor.readGesture();
-    uint8_t proximity;
-    char dir[15];
-
-    // TBD: backlight control based on proximity
-    GestSensor.readProximity(proximity);
-
-#ifdef SS_DEBUG
-    pc.printf("motion = %d detected !\r\n", motion);
-    pc.printf("proximity = %d \r\n", proximity);
-#endif
-
-    switch (motion)
-    {
-    case DIR_LEFT:
-        strcpy(dir, "L-Paused");
-        break;
-    case DIR_RIGHT:
-        strcpy(dir, "R-Paused");
-        break;
-    case DIR_UP:
-        strcpy(dir, "Roll Up");
-        break;
-    case DIR_DOWN:
-        strcpy(dir, "Roll Down");
-        break;
-    case DIR_NEAR:
-        strcpy(dir, "Hi, Jeng-Yu!");
-        break;
-    case DIR_FAR:
-        strcpy(dir, "Bye, Jeng-Yu!");
-        break;
-    default:
-        strcpy(dir, "Unknown Dir!");
-        break;
-    }
-
-    motionToLCD(dir);
-
-    driveMotor(motion);
-
-    helloToLCD();
-}
-
-bool prepareGestSensor(void)
-{
-    char errMsg[16];
-
-    if (GestSensor.init() == false)
-    {
-        strcpy(errMsg, "E init GS");
-        errToLCD(errMsg);
-        return (false);
-    }
-
-    if (GestSensor.enableGestureSensor(true) == false)
-    {
-        strcpy(errMsg, "E EN GS");
-        errToLCD(errMsg);
-        return (false);
-    }
-
-#ifdef SS_DEBUG
-    pc.printf("gs interrupt enable: %d\r\n", GestSensor.getGestureIntEnable());
-    pc.printf("motion = %d\r\n", GestSensor.readGesture());
-#endif
-
-    // clear any unintended interrupt
-    //GestSensor.readGesture();
-
-    return (true);
-}
-
-void checkGestureControl(void)
-{
-    if (GestSensor.isGestureAvailable())
-    {
-        task_Movement();
-        timerCmd.reset();
-        timerCmd.start();
-    }
-}
-
-void checkBLEControl(void)
-{
-    if (button_ready)
-    {
-        if (bnum == '5')
-            driveMotor(DIR_UP);
-        else if (bnum == '6')
-            driveMotor(DIR_DOWN);
-        else if ((bnum == '7') || (bnum == '8'))
-            driveMotor(DIR_LEFT);
-        button_ready = 0;               //reset flag after reading button message
-        timerCmd.reset();
-        timerCmd.start();
-    }
-}
-
-void checkTemperature(void)
-{
-    if (tempF > confTempF)
-    {
-        if (timerCmd.read() > IDLE_TIME_FOR_TEMP_CONTROL_S)
-        {
-            if (SvoMotor.GetCurrentState() != down)
-            {
-                char str[15];
-                strcpy(str, "Hot->Roll Down");
-                motionToLCD(str);
-                driveMotor(DIR_DOWN);
-                helloToLCD();
-            }
-            timerCmd.reset();
-        }
-    }
-    tempToLCD(tempF);
-}
-
+/**
+ * Initialize and start the kernel.
+ *
+ */
 int main()
 {
-    pc.baud(9600);
-    pc.printf("\r\n Starting Smart Shade Test...\r\n\r\n");
+    //pc.baud(9600);
+    //pc.printf("\r\n Starting Smart Shade Test...\r\n\r\n");
 
-    // Clear LCD screen
+    // Reset LCD screen
     LCD.cls();
-    helloToLCD();
 
     // Initialize Temperature Sensor
     TempSensor.Initialize();
+    tempF = TempSensor.GetTemperatureInF();
+    comfTempF = TempSensor.GetComfTempInF();
+
+    // Setup interrupt for gesture sensor
+    gsInt.mode(PullUp);
+    gsInt.fall(&task_Movement);
 
     // Initialize Gesture Sensor
     prepareGestSensor();
@@ -270,19 +376,19 @@ int main()
     // Set up serial interrupt for Bluefruit
     BLE.attach(&task_ReadBLE, Serial::RxIrq);
 
-    // TBD
-    //gsInt.fall(&task_Movement);
-
     while(1)
     {
-        // Check for new gesture
-        checkGestureControl();
+        // Long latency job below
 
-        // Check for a new button message ready from BLE
-        checkBLEControl();
+        // Operate motor based on motion commanded
+        driveMotor();
 
-        // Update / handle current temperature
-        checkTemperature();
+        // Update flash if needed
+        if (needToSaveFlash)
+        {
+            TempSensor.SetConmfTempInF(comfTempF);
+            needToSaveFlash = false;
+        }
 
         wait_ms(SAMPLING_TIME_MS);
     }

@@ -25,6 +25,12 @@
 
 #include "mbed.h"
 
+unsigned int customChars[2][8] = {
+{0, 0x04, 0x1F, 0x0E, 0x0E, 0x0A, 0x11, 0}, // 0x00 Star
+{0, 0x0A, 0x1F, 0x1F, 0x1F, 0x0E, 0x04, 0}  // 0x01 Heart
+};
+
+
 /**  A TextLCD interface for driving 4-bit HD44780-based LCDs
  *
  * Currently supports 16x2, 20x2 and 20x4 panels
@@ -87,6 +93,7 @@ public:
 
     int rows();
     int columns();
+    void programCharacter(unsigned int location, const unsigned int* patternArray);
 
 protected:
 

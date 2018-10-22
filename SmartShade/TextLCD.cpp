@@ -157,3 +157,30 @@ int TextLCD::rows() {
             return 2;
     }
 }
+
+/** New functions to program custom characters
+ *    Only work for LCD16x2; might work for LCD16x2B
+ *
+ * @param location      Character address supporting 0-7 (8 custom characters)
+ * @param patternArray  array of 8 bytes defining the pattern of the character
+ */
+void TextLCD::programCharacter(unsigned int location, const unsigned int* patternArray)
+{
+    //
+    // CGRAM Address bit 3-5: defines character location (for
+    // CGRAM Address bit 0-2 (0-7 decimal): defines pattern from top to bottom
+    //
+    //
+    const unsigned char CMD_PROG_CHAR = 0x40;
+
+    if (_type == LCD16x2)
+    {
+        for (unsigned int i = 0; i < 8; i++)
+        {
+            unsigned int curCommand = CMD_PROG_CHAR | ((location & 0x07) << 3) | (i & 0x07);
+            writeCommand(curCommand);
+            writeData(patternArray[i]);
+            wait(0.000040f);    // most instructions take 40us
+        }
+    }
+}

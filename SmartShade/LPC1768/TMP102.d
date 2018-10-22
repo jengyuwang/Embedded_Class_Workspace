@@ -138,7 +138,7 @@ LPC1768/TMP102.o: TMP102.cpp ../../src/mbed_config.h TMP102.h \
  ../../external/mbed-os/hal/sleep_api.h \
  ../../external/mbed-os/platform/mbed_rtc_time.h \
  ../../external/mbed-os/platform/Callback.h \
- ../../external/mbed-os/platform/FunctionPointer.h
+ ../../external/mbed-os/platform/FunctionPointer.h IAP.h
 
 ../../src/mbed_config.h:
 
@@ -427,3 +427,5 @@ TMP102.h:
 ../../external/mbed-os/platform/Callback.h:
 
 ../../external/mbed-os/platform/FunctionPointer.h:
+
+IAP.h:

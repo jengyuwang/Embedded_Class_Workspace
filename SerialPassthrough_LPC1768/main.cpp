@@ -76,9 +76,7 @@ DigitalOut led4(LED4);
 void dev_recv()
 {
     led1 = !led1;
-    while(dev.readable()) {
-        pc.putc(dev.getc());
-    }
+
 }
 
 void pc_recv()

@@ -7,10 +7,11 @@
 
 #include "ServoMotor.h"
 
-#ifdef SS_DEBUG
-Serial pc(USBTX, USBRX);
-#endif
-
+/**
+ * ServoMotor constructor
+ *
+ * @param pwmout       PinName pwm output
+ */
 ServoMotor::ServoMotor(PinName pwmOut) : svoMotor(pwmOut)
 {
     svoMotor.period_ms(pwm_period_ms);
@@ -19,18 +20,23 @@ ServoMotor::ServoMotor(PinName pwmOut) : svoMotor(pwmOut)
     stop = false;
 }
 
+/**
+ * ServoMotor destructor
+ */
 ServoMotor::~ServoMotor(void)
 {
 
 }
 
+/**
+ * Roll up the shade
+ *
+ * @return bool    action taken or not
+ */
 bool ServoMotor::RollUp(void)
 {
     if (currentDuty >= max_pulse_width)
     {
-#ifdef SS_DEBUG
-        pc.printf("Already rolled up!\r\n");
-#endif
         // already up
         return false;
     }
@@ -51,20 +57,19 @@ bool ServoMotor::RollUp(void)
             }
         }
 
-#ifdef SS_DEBUG
-        pc.printf("Rolling up with currentDuty = %2.4f\r\n", currentDuty);
-#endif
         return true;
     }
 }
 
+/**
+ * Roll down the shade
+ *
+ * @return bool    action taken or not
+ */
 bool ServoMotor::RollDown(void)
 {
     if (currentDuty <= min_pulse_width)
     {
-#ifdef SS_DEBUG
-        pc.printf("Already rolled down!\r\n");
-#endif
         // already down
         return false;
     }
@@ -85,14 +90,14 @@ bool ServoMotor::RollDown(void)
             }
         }
 
-#ifdef SS_DEBUG
-        pc.printf("Rolling down with currentDuty = %2.4f\r\n", currentDuty);
-#endif
-
         return true;
     }
 }
 
+/**
+ * Pause the motor to keep the shade at the place
+ *
+ */
 void ServoMotor::Pause(void)
 {
     stop = true;
@@ -102,6 +107,11 @@ void ServoMotor::Pause(void)
 #endif
 }
 
+/**
+ * Get current shade location
+ *
+ * @return int    down/up/middle state
+ */
 int ServoMotor::GetCurrentState(void)
 {
     int state;
@@ -118,10 +128,6 @@ int ServoMotor::GetCurrentState(void)
     {
         state = middle;
     }
-
-#ifdef SS_DEBUG
-        pc.printf("currentDuty = %2.4f, state = %d\r\n", currentDuty, state);
-#endif
 
     return state;
 }

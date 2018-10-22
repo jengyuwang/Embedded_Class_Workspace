@@ -197,7 +197,8 @@ enum {
     DIR_DOWN,
     DIR_NEAR,
     DIR_FAR,
-    DIR_ALL
+    DIR_ALL,
+    DIR_HOT
 };
 
 /* State definitions */
@@ -282,6 +283,7 @@ public:
     /* Clear interrupts */
     bool clearAmbientLightInt();
     bool clearProximityInt();
+    bool forceInterrupt();
 
     /* Ambient light methods */
     bool readAmbientLight(uint16_t &val);
@@ -295,6 +297,9 @@ public:
     /* Gesture methods */
     bool isGestureAvailable();
     int readGesture();
+
+    // DBG
+    int wireReadDataByte(uint8_t reg, uint8_t &val);
 
 private:
     I2C i2c;
@@ -338,7 +343,7 @@ private:
     //bool wireWriteByte(uint8_t val);
     int wireWriteDataByte(uint8_t reg, uint8_t val);
     int wireWriteDataBlock(uint8_t reg, uint8_t *val, unsigned int len);
-    int wireReadDataByte(uint8_t reg, uint8_t &val);
+    //int wireReadDataByte(uint8_t reg, uint8_t &val);
     int wireReadDataBlock(uint8_t reg, uint8_t *val, unsigned int len);
 
     /* Members */

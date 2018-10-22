@@ -8,8 +8,6 @@
 #ifndef SERVOMOTOR_H_
 #define SERVOMOTOR_H_
 
-#define SS_DEBUG
-
 #include "mbed.h"
 
 enum stateShade
@@ -44,7 +42,6 @@ private:
     volatile float  currentDuty;
     volatile bool   stop;
 };
-
 
 
 #endif /* SERVOMOTOR_H_ */
