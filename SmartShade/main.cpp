@@ -13,14 +13,27 @@
 #define SAMPLING_TIME_MS                    100
 #define IDLE_TIME_FOR_TEMP_CONTROL_S        10.
 #define SET_COMFTEMP_TIMEOUT_TIME_S         3.
-
-#define SS_DEBUG
+#define NUM_OF_CUSTOM_CHARS                 6
 
 //
 // State used to remember previous characters read in a button message from BLE
 //
 enum statetype {start = 0, got_exclm, got_B, got_num, got_hit};
 statetype state = start;
+
+
+//
+// Custom characters to be displayed to LCD
+//
+unsigned int customChars[NUM_OF_CUSTOM_CHARS][8] = {
+{0x00, 0x04, 0x1F, 0x0E, 0x0E, 0x0A, 0x11, 0x00},   // 0x01 Star
+{0x00, 0x0A, 0x1F, 0x1F, 0x1F, 0x0E, 0x04, 0x00},   // 0x02 Heart
+{0x0C, 0x12, 0x12, 0x0C, 0x00, 0x00, 0x00, 0x00},   // 0x03 Degree sign
+{0x04, 0x0E, 0x15, 0x04, 0x04, 0x04, 0x04, 0x04},   // 0x04 Up arrow
+{0x04, 0x04, 0x04, 0x04, 0x04, 0x15, 0x0E, 0x04},   // 0x05 Down arrow
+{0x08, 0x04, 0x06, 0x0E, 0x1F, 0x1F, 0x0E, 0x04}    // 0x06 Fire sign
+};
+
 
 //
 // Global variables for main and interrupt routine
@@ -55,15 +68,20 @@ Timer           timerCmd;
 Timeout         setComfTemp;
 InterruptIn     gsInt(p6);
 
+
 //
 // Prototype for functions
 //
+void prepareLCD(void);
+void prepareTempSensor(void);
+bool prepareGestSensor(void);
+void prepareInterrupts(void);
+
 void tempToLCD(float temp);
 void strToLCD(char *string);
 void motionToLCD(void);
 void driveMotor(void);
 
-bool prepareGestSensor(void);
 
 //
 // Interrupt Service Routines
@@ -74,19 +92,92 @@ void task_Movement(void);
 void task_ReadBLE(void);
 
 /**
+* Prepare interrupts, timer, and ticker
+*
+*/
+void prepareHWInterrupts(void)
+{
+    // Setup interrupt for gesture sensor
+    gsInt.mode(PullUp);
+    gsInt.fall(&task_Movement);
+
+    // Set up serial interrupt for Bluefruit
+    BLE.attach(&task_ReadBLE, Serial::RxIrq);
+}
+
+/**
+ * Prepare LCD including custom character setup
+ *
+ */
+void prepareLCD(void)
+{
+    for (int i = 0; i < NUM_OF_CUSTOM_CHARS; i++)
+    {
+        LCD.programCharacter(i+1, customChars[i]);
+    }
+    LCD.cls();
+}
+
+/**
+ * Prepare temperature sensor
+ *
+ */
+void prepareTempSensor(void)
+{
+    TempSensor.Initialize();
+    tempF = TempSensor.GetTemperatureInF();
+    comfTempF = TempSensor.GetComfTempInF();
+}
+
+/**
+ * Prepare gesture sensor. Print error message to LCD if needed
+ *
+ * @return bool    success (true) or fail (false)
+ */
+bool prepareGestSensor(void)
+{
+    char errMsg[16];
+
+    if (GestSensor.init() == false)
+    {
+        strcpy(errMsg, "  Err init GS ! ");
+        strToLCD(errMsg);
+        return (false);
+    }
+
+    if (GestSensor.enableGestureSensor(true) == false)
+    {
+        strcpy(errMsg, "  Err enbl GS ! ");
+        strToLCD(errMsg);
+        return (false);
+    }
+
+    GestSensor.readGesture();
+
+    return (true);
+}
+
+/**
+ * Prepare timer and ticker
+ *
+ */
+void prepareTimerAndTicker(void)
+{
+    // Sample temperature every TEMPERATURE_SAMPLING_TIME_S second
+    tkTemp.attach(&task_ReadTemperature, TEMPERATURE_SAMPLING_TIME_S);
+
+    timerCmd.start();
+}
+
+/**
  * Print temperature reading to LCD
  *
  */
 void tempToLCD(float temp)
 {
-    LCD.locate(0,1);
-    LCD.printf("%.1fF",temp);
+    LCD.printf("%.1f\337F",temp);
     LCD.locate(8,1);
-    LCD.printf("(%.1fF)",comfTempF);
-    /*
-    LCD.cls();
-    LCD.programCharacter(0, customChars[0]);
-    */
+    LCD.printf("(%.1f\337F)",comfTempF);
 }
 
 /**
@@ -107,37 +198,45 @@ void motionToLCD(void)
 {
     char dir[16];
 
-    switch (motion)
-    {
-    case DIR_LEFT:
-        strcpy(dir, "    L-Paused    ");
-        break;
-    case DIR_RIGHT:
-        strcpy(dir, "    R-Paused    ");
-        break;
-    case DIR_UP:
-        strcpy(dir, "   Roll Up      ");
-        break;
-    case DIR_DOWN:
-        strcpy(dir, "   Roll Down    ");
-        break;
-    case DIR_NEAR:
-    case DIR_NONE:
-        strcpy(dir, "* Smart Shade * ");
-        break;
-    case DIR_FAR:
-        strcpy(dir, "    * Bye *     ");
-        break;
-    case DIR_HOT:
-        strcpy(dir, " Hot->Roll Down ");
-        break;
-    default:
-        strcpy(dir, "  Unknown Dir!  ");
-        break;
-    }
+     switch (motion)
+     {
+     case DIR_LEFT:
+         sprintf(dir, "    L-Paused    ");
+         break;
+     case DIR_RIGHT:
+         sprintf(dir, "    R-Paused    ");
+         break;
+     case DIR_UP:
+         sprintf(dir, "    Roll Up     ");
+         dir[1] = 4;
+         dir[13] = 4;
+         break;
+     case DIR_DOWN:
+         sprintf(dir, "    Roll Down   ");
+         dir[1] = 5;
+         dir[15] = 5;
+         break;
+     case DIR_NEAR:
+     case DIR_NONE:
+         sprintf(dir, "* Smart Shade * ");
+         break;
+     case DIR_FAR:
+         sprintf(dir, "    * Bye *     ");
+         dir[4] = 2;
+         dir[10] = 2;
+         break;
+     case DIR_HOT:
+         sprintf(dir, "Hot  Roll Down  ");
+         dir[3] = 6;
+         dir[15] = 5;
+         break;
+     default:
+         sprintf(dir, "  Unknown Dir!  ");
+         break;
+     }
 
-    strToLCD(dir);
-    tempToLCD(tempF);
+     strToLCD(dir);
+     tempToLCD(tempF);
 }
 
 /**
@@ -173,32 +272,6 @@ void driveMotor(void)
         timerCmd.reset();
         timerCmd.start();
     }
-}
-
-/**
- * Prepare gesture sensor. Print error message to LCD if needed
- *
- * @return bool    success (true) or fail (false)
- */
-bool prepareGestSensor(void)
-{
-    char errMsg[16];
-
-    if (GestSensor.init() == false)
-    {
-        strcpy(errMsg, "  Err init GS ! ");
-        strToLCD(errMsg);
-        return (false);
-    }
-
-    if (GestSensor.enableGestureSensor(true) == false)
-    {
-        strcpy(errMsg, "  Err enbl GS ! ");
-        strToLCD(errMsg);
-        return (false);
-    }
-
-    return (true);
 }
 
 /**
@@ -354,32 +427,24 @@ int main()
     //pc.baud(9600);
     //pc.printf("\r\n Starting Smart Shade Test...\r\n\r\n");
 
+    // Prepare HW interrupt first
+    prepareHWInterrupts();
+
     // Reset LCD screen
-    LCD.cls();
+    prepareLCD();
 
     // Initialize Temperature Sensor
-    TempSensor.Initialize();
-    tempF = TempSensor.GetTemperatureInF();
-    comfTempF = TempSensor.GetComfTempInF();
-
-    // Setup interrupt for gesture sensor
-    gsInt.mode(PullUp);
-    gsInt.fall(&task_Movement);
+    prepareTempSensor();
 
     // Initialize Gesture Sensor
     prepareGestSensor();
 
-    // Sample temperature every TEMPERATURE_SAMPLING_TIME_S second
-    tkTemp.attach(&task_ReadTemperature, TEMPERATURE_SAMPLING_TIME_S);
-    timerCmd.start();
-
-    // Set up serial interrupt for Bluefruit
-    BLE.attach(&task_ReadBLE, Serial::RxIrq);
+    // Setup all the timer and ticker
+    prepareTimerAndTicker();
 
     while(1)
     {
         // Long latency job below
-
         // Operate motor based on motion commanded
         driveMotor();
 
