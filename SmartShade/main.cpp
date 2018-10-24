@@ -75,7 +75,7 @@ InterruptIn     gsInt(p6);
 void prepareLCD(void);
 void prepareTempSensor(void);
 bool prepareGestSensor(void);
-void prepareInterrupts(void);
+void prepareHWInterrupts(void);
 
 void tempToLCD(float temp);
 void strToLCD(char *string);
