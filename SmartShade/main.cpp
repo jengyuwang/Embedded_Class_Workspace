@@ -1,6 +1,12 @@
 
-/* Test which brings default HelloWorld project from mbed online compiler
-   to be built under GCC.
+/* Smart Shade Project uses mbed controller with GCC compiler
+ * Capabiluity:
+ * -> Roll up / down / pause the roman shade by either hand gesture or through smart device with Bluetooth control (U, D, L, R)
+ * -> LCD to display status (current temperature, shade is rolling up or down, etc.)
+ * -> Automatically roll down the shape when temperature exceeds the preset comfortable temperature
+ * -> User can change the comfortable temperature through Bluetooth.
+ *    The configured value will be saved to the flash and still applied when power cycled.
+ *
 */
 
 #include "mbed.h"
@@ -62,7 +68,7 @@ APDS9960_I2C    GestSensor(p9, p10);
 ServoMotor      SvoMotor(p26);
 
 Serial          BLE(p28, p27);
-//Serial          pc(USBTX,USBRX);
+Serial          pc(USBTX,USBRX);
 Ticker          tkTemp;
 Timer           timerCmd;
 Timeout         setComfTemp;
@@ -378,7 +384,7 @@ void task_Movement(void)
         }
     }
 
-    // TBD: backlight control based on proximity (not reliable yet)
+    // TBD: backlight control based on proximity (not reliable yet) -> set pulsewidth_ms on backLight pin
     GestSensor.readProximity(proximity);
 }
 
