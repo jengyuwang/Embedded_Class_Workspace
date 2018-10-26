@@ -1,7 +1,7 @@
 
 /* Smart Shade Project uses mbed controller with GCC compiler
- * Capabiluity:
- * -> Roll up / down / pause the roman shade by either hand gesture or through smart device with Bluetooth control (U, D, L, R)
+ * Capability:
+ * -> Roll up / down / pause the Roman shade by either hand gesture or through smart device with Bluetooth control (U, D, L, R)
  * -> LCD to display status (current temperature, shade is rolling up or down, etc.)
  * -> Automatically roll down the shape when temperature exceeds the preset comfortable temperature
  * -> User can change the comfortable temperature through Bluetooth.
