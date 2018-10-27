@@ -17,6 +17,7 @@
 
 #define TEMPERATURE_SAMPLING_TIME_S         5.
 #define SAMPLING_TIME_MS                    100
+#define PAUSE_SHADE_WAIT_TIME_MS            1000
 #define IDLE_TIME_FOR_TEMP_CONTROL_S        10.
 #define SET_COMFTEMP_TIMEOUT_TIME_S         3.
 #define NUM_OF_CUSTOM_CHARS                 6
@@ -264,6 +265,11 @@ void driveMotor(void)
     case DIR_HOT:
         SvoMotor.RollDown();
         break;
+    case DIR_LEFT:
+    case DIR_RIGHT:
+        // To show pause status on LCD since SvoMotor is not running and exit fase
+        wait_ms(PAUSE_SHADE_WAIT_TIME_MS);
+        break;
     default:
         // Do nothing
         resetTimer = false;
@@ -310,8 +316,9 @@ void checkBLEControl(void)
             motion = DIR_DOWN;
         else if ((bnum == '7') || (bnum == '8'))
         {
-            motion = DIR_LEFT;          // No matter
+            motion = (bnum == '7') ? DIR_LEFT : DIR_RIGHT;          // No matter
             SvoMotor.Pause();           // pause motor in the ISR (only set up stop bit of SvoMotor
+            motionToLCD();
         }
         else if (bhit == '1')
         {
@@ -381,6 +388,7 @@ void task_Movement(void)
         if ((motion == DIR_LEFT) || (motion == DIR_RIGHT))
         {
              SvoMotor.Pause();           // pause motor in the ISR (only set up stop bit of SvoMotor
+             motionToLCD();
         }
     }
 
